@@ -16,7 +16,9 @@ const (
 
 type Payment struct {
 	ID        uuid.UUID   `json:"id" db:"id" validate:"required,uuid"`
-	Amount    float64     `json:"amount" db:"amount" validate:"required,min=0"`
+	OrderID   uuid.UUID   `json:"orderId" db:"order_id" validate:"required,uuid"`
+	Amount    int         `json:"amount" db:"amount" validate:"required,min=1"`
 	Status    OrderStatus `json:"status" db:"status" validate:"required"`
-	CreatedAt time.Time   `json:"createdAt" db:"created_at" validate:"required"`
+	CreatedAt time.Time   `json:"createdAt" db:"created_at"`
+	UpdatedAt time.Time   `json:"updatedAt" db:"updated_at"`
 }
