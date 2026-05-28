@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS order_items (
 );
 
 CREATE TABLE IF NOT EXISTS payments (
-    id uuid primary key default gen_random_uuid(),
+    id uuid primary key not null,
     order_id uuid not null references orders (id),
     amount bigint not null check (amount > 0),
     status varchar(255) not null check (status in ('pending', 'success', 'failed') ),
