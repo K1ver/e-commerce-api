@@ -10,7 +10,7 @@ import (
 )
 
 type CartRepository interface {
-	Create(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
+	Create(ctx context.Context, userID uuid.UUID) error
 	GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
 	GetWithItems(ctx context.Context, cartID uuid.UUID) (*domain.Cart, error)
 	AddItem(ctx context.Context, cartID, productID uuid.UUID, quantity int) error
@@ -27,16 +27,16 @@ func NewCartRepository(db *sqlx.DB) CartRepository {
 	return &cartRepository{db: db}
 }
 
-func (r *cartRepository) Create(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
+func (r *cartRepository) Create(ctx context.Context, userID uuid.UUID) error {
 	const query = `INSERT INTO carts(user_id)
 		VALUES($1)
 		RETURNING id, created_at, updated_at`
 	var cart domain.Cart
 	err := r.db.QueryRowContext(ctx, query, userID).Scan(&cart.ID, &cart.CreatedAt, &cart.UpdatedAt)
 	if err != nil {
-		return nil, fmt.Errorf("create cart: %w", err)
+		return fmt.Errorf("create cart: %w", err)
 	}
-	return &cart, nil
+	return nil
 }
 
 func (r *cartRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {

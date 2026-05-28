@@ -24,8 +24,8 @@ func NewPaymentRepository(db *sqlx.DB) PaymentRepository {
 }
 
 func (p *paymentRepository) Create(ctx context.Context, payment domain.Payment) error {
-	const query = `INSERT INTO payments(order_id, amount, status) VALUES ($1, $2, $3)`
-	_, err := p.db.ExecContext(ctx, query, payment.OrderID, payment.Amount, payment.Status)
+	const query = `INSERT INTO payments(id, order_id, amount, status) VALUES ($1, $2, $3, $4)`
+	_, err := p.db.ExecContext(ctx, query, payment.ID, payment.OrderID, payment.Amount, payment.Status)
 	if err != nil {
 		return fmt.Errorf("create payment: %w", err)
 	}
@@ -34,7 +34,7 @@ func (p *paymentRepository) Create(ctx context.Context, payment domain.Payment) 
 
 func (p *paymentRepository) Update(ctx context.Context, payment domain.Payment) error {
 	const query = `UPDATE payments SET status = $2, updated_at = now() WHERE order_id = $1`
-	_, err := p.db.ExecContext(ctx, query, payment.OrderID, payment.Amount)
+	_, err := p.db.ExecContext(ctx, query, payment.OrderID, payment.Status)
 	if err != nil {
 		return fmt.Errorf("update payment: %w", err)
 	}
