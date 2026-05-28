@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/repository/postgres"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -18,17 +20,28 @@ type ProductService interface {
 
 type productService struct {
 	productRepository postgres.ProductRepository
+	validate          *validator.Validate
 }
 
-func NewProductService(productRepository postgres.ProductRepository) ProductService {
-	return &productService{productRepository: productRepository}
+func NewProductService(productRepository postgres.ProductRepository, validate *validator.Validate) ProductService {
+	return &productService{productRepository: productRepository, validate: validate}
 }
 
 func (ps *productService) Create(ctx context.Context, product domain.Product) error {
+	err := ps.validate.StructCtx(ctx, product)
+	if err != nil {
+		return fmt.Errorf("validate err: %w", err)
+	}
+
 	return ps.productRepository.Create(ctx, product)
 }
 
 func (ps *productService) Update(ctx context.Context, product domain.Product) error {
+	err := ps.validate.StructCtx(ctx, product)
+	if err != nil {
+		return fmt.Errorf("validate err: %w", err)
+	}
+
 	return ps.productRepository.Update(ctx, product)
 }
 

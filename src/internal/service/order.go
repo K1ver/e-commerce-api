@@ -6,6 +6,7 @@ import (
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/repository/postgres"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -17,14 +18,20 @@ type OrderService interface {
 
 type orderService struct {
 	orderRepository postgres.OrderRepository
+	validate        *validator.Validate
 }
 
-func NewOrderService(orderRepository postgres.OrderRepository) OrderService {
-	return &orderService{orderRepository: orderRepository}
+func NewOrderService(orderRepository postgres.OrderRepository, validate *validator.Validate) OrderService {
+	return &orderService{orderRepository: orderRepository, validate: validate}
 }
 
 func (service *orderService) Create(ctx context.Context, order domain.Order) error {
-	err := service.orderRepository.Create(ctx, order)
+	err := service.validate.StructCtx(ctx, order)
+	if err != nil {
+		return fmt.Errorf("validate err: %w", err)
+	}
+
+	err = service.orderRepository.Create(ctx, order)
 	if err != nil {
 		return fmt.Errorf("create order %w", err)
 	}

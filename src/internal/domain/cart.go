@@ -7,7 +7,7 @@ import (
 )
 
 type Cart struct {
-	ID        uuid.UUID  `json:"id" db:"id" validate:"required,uuid"`
+	ID        uuid.UUID  `json:"id" db:"id" validate:"uuid"`
 	UserID    uuid.UUID  `json:"userId" db:"user_id" validate:"required,uuid"`
 	Items     []CartItem `json:"items" db:"-"`
 	CreatedAt time.Time  `json:"createdAt" db:"created_at"`
@@ -15,7 +15,7 @@ type Cart struct {
 }
 
 type CartItem struct {
-	ID        uuid.UUID `json:"id" db:"id" validate:"required,uuid"`
+	ID        uuid.UUID `json:"id" db:"id" validate:"uuid"`
 	CartId    uuid.UUID `json:"cartId" db:"cart_id" validate:"required,uuid"`
 	ProductId uuid.UUID `json:"productId" db:"product_id" validate:"required,uuid"`
 	Quantity  int       `json:"quantity" db:"quantity" validate:"required,min=1"`

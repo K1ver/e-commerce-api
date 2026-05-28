@@ -7,6 +7,7 @@ import (
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/repository/postgres"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/rvinnie/yookassa-sdk-go/yookassa"
 	yoocommon "github.com/rvinnie/yookassa-sdk-go/yookassa/common"
@@ -22,13 +23,19 @@ type PaymentService interface {
 type paymentService struct {
 	paymentRepository postgres.PaymentRepository
 	paymentHandler    *yookassa.PaymentHandler
+	validate          *validator.Validate
 }
 
-func NewPaymentService(paymentRepository postgres.PaymentRepository, paymentHandler *yookassa.PaymentHandler) PaymentService {
-	return &paymentService{paymentRepository: paymentRepository, paymentHandler: paymentHandler}
+func NewPaymentService(paymentRepository postgres.PaymentRepository, paymentHandler *yookassa.PaymentHandler, validate *validator.Validate) PaymentService {
+	return &paymentService{paymentRepository: paymentRepository, paymentHandler: paymentHandler, validate: validate}
 }
 
 func (s *paymentService) Create(ctx context.Context, payment domain.Payment) (string, error) {
+	err := s.validate.StructCtx(ctx, payment)
+	if err != nil {
+		return "", fmt.Errorf("validate err: %w", err)
+	}
+
 	yopayment, err := s.paymentHandler.CreatePayment(ctx, &yoopayment.Payment{
 		Amount: &yoocommon.Amount{
 			Value:    strconv.Itoa(payment.Amount),
@@ -57,6 +64,11 @@ func (s *paymentService) Create(ctx context.Context, payment domain.Payment) (st
 }
 
 func (s *paymentService) Update(ctx context.Context, payment domain.Payment) (domain.PaymentStatus, error) {
+	err := s.validate.StructCtx(ctx, payment)
+	if err != nil {
+		return "", fmt.Errorf("validate err: %w", err)
+	}
+
 	yopayment, _ := s.paymentHandler.FindPayment(ctx, payment.ID.String())
 	if yopayment.Status == "succeeded" {
 		payment.Status = domain.PaymentStatusSuccess
@@ -66,7 +78,7 @@ func (s *paymentService) Update(ctx context.Context, payment domain.Payment) (do
 		payment.Status = domain.PaymentStatusPending
 	}
 
-	err := s.paymentRepository.Update(ctx, payment)
+	err = s.paymentRepository.Update(ctx, payment)
 	return payment.Status, err
 }
 

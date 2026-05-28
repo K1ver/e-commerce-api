@@ -17,8 +17,8 @@ const (
 )
 
 type Order struct {
-	Id         uuid.UUID   `json:"id" db:"id"`
-	UserId     uuid.UUID   `json:"userId" db:"user_id"`
+	Id         uuid.UUID   `json:"id" db:"id" validate:"uuid"`
+	UserId     uuid.UUID   `json:"userId" db:"user_id" validate:"required,uuid"`
 	TotalPrice int         `json:"totalPrice" db:"total_price" validate:"required,min=1"`
 	Status     OrderStatus `json:"status" db:"status" validate:"required"`
 	Items      []OrderItem `json:"items" db:"-"`

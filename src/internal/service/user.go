@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/repository/postgres"
+	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 )
 
@@ -19,13 +21,19 @@ type UserService interface {
 
 type userService struct {
 	userRepository postgres.UserRepository
+	validate       *validator.Validate
 }
 
-func NewUserService(userRepository postgres.UserRepository) UserService {
-	return &userService{userRepository: userRepository}
+func NewUserService(userRepository postgres.UserRepository, validate *validator.Validate) UserService {
+	return &userService{userRepository: userRepository, validate: validate}
 }
 
 func (us *userService) Create(ctx context.Context, user *domain.User) error {
+	err := us.validate.StructCtx(ctx, user)
+	if err != nil {
+		return fmt.Errorf("validate user: %w", err)
+	}
+
 	return us.userRepository.Create(ctx, user)
 }
 
