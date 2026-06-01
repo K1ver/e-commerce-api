@@ -69,7 +69,10 @@ func (s *paymentService) Update(ctx context.Context, payment domain.Payment) (do
 		return "", fmt.Errorf("validate err: %w", err)
 	}
 
-	yopayment, _ := s.paymentHandler.FindPayment(ctx, payment.ID.String())
+	yopayment, err := s.paymentHandler.FindPayment(ctx, payment.ID.String())
+	if err != nil {
+		return "", fmt.Errorf("payment find failed: %w", err)
+	}
 	if yopayment.Status == "succeeded" {
 		payment.Status = domain.PaymentStatusSuccess
 	} else if yopayment.Status == "canceled" {

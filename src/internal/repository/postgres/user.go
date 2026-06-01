@@ -14,6 +14,7 @@ import (
 
 type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
+	GetCredentialsByUsername(ctx context.Context, username string) (uuid.UUID, string, error)
 	GetById(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByUsername(ctx context.Context, username string) (*domain.User, error)
@@ -30,7 +31,7 @@ func NewUserRepository(db *sqlx.DB) UserRepository {
 }
 
 func (u *userRepository) Create(ctx context.Context, user *domain.User) error {
-	const query = `
+	const queryCreateUser = `
           INSERT INTO users (
                              first_name,
                              last_name,
@@ -40,7 +41,7 @@ func (u *userRepository) Create(ctx context.Context, user *domain.User) error {
           )
           VALUES ($1, $2, $3, $4, $5)
           RETURNING id, created_at, updated_at`
-	err := u.db.QueryRowxContext(ctx, query, user.FirstName, user.LastName, user.Username, user.Email, user.Password).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
+	err := u.db.QueryRowxContext(ctx, queryCreateUser, user.FirstName, user.LastName, user.Username, user.Email, user.Password).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if strings.Contains(err.Error(), "users_email_key") {
 			return domain.ErrEmailAlreadyExists
@@ -53,6 +54,22 @@ func (u *userRepository) Create(ctx context.Context, user *domain.User) error {
 		return fmt.Errorf("create user: %w", err)
 	}
 	return nil
+}
+
+func (u *userRepository) GetCredentialsByUsername(ctx context.Context, username string) (uuid.UUID, string, error) {
+	const query = `SELECT id, password_hash FROM users WHERE username = $1`
+	var cred struct {
+		ID           uuid.UUID `db:"id"`
+		PasswordHash string    `db:"password_hash"`
+	}
+	err := u.db.GetContext(ctx, &cred, query, username)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return uuid.Nil, "", domain.ErrUserNotFound
+		}
+		return uuid.Nil, "", fmt.Errorf("get credentials: %w", err)
+	}
+	return cred.ID, cred.PasswordHash, nil
 }
 
 func (u *userRepository) GetById(ctx context.Context, id uuid.UUID) (*domain.User, error) {

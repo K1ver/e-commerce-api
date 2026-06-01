@@ -10,9 +10,10 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 var ErrEmailAlreadyExists = errors.New("email already exists")
 var ErrUsernameAlreadyExists = errors.New("username already exists")
+var ErrInvalidCredentials = errors.New("invalid credentials")
 
 type User struct {
-	ID        uuid.UUID `json:"id" db:"id" validate:"uuid"`
+	ID        uuid.UUID `json:"id" db:"id" validate:"omitempty,uuid"`
 	FirstName string    `json:"firstName" db:"first_name" validate:"required,min=2,max=50"`
 	LastName  string    `json:"lastName" db:"last_name" validate:"required,min=2,max=50"`
 	Username  string    `json:"username" db:"username" validate:"required,min=3,max=30"`

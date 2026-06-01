@@ -43,10 +43,10 @@ func (p *paymentRepository) Update(ctx context.Context, payment domain.Payment) 
 
 func (p *paymentRepository) GetByOrderID(ctx context.Context, orderID uuid.UUID) (*domain.Payment, error) {
 	const query = `SELECT order_id, amount, status, created_at, updated_at FROM payments WHERE order_id = $1`
-	var payment *domain.Payment
-	err := p.db.GetContext(ctx, payment, query, orderID)
+	var payment domain.Payment
+	err := p.db.GetContext(ctx, &payment, query, orderID)
 	if err != nil {
 		return nil, fmt.Errorf("get all payments: %w", err)
 	}
-	return payment, nil
+	return &payment, nil
 }

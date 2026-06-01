@@ -2,16 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/repository/postgres"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserService interface {
 	Create(ctx context.Context, user *domain.User) error
+	SignIn(ctx context.Context, username, password string) (uuid.UUID, error)
 	GetById(ctx context.Context, id uuid.UUID) (*domain.User, error)
 	GetByEmail(ctx context.Context, email string) (*domain.User, error)
 	GetByUsername(ctx context.Context, username string) (*domain.User, error)
@@ -33,8 +36,27 @@ func (us *userService) Create(ctx context.Context, user *domain.User) error {
 	if err != nil {
 		return fmt.Errorf("validate user: %w", err)
 	}
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+	user.Password = string(hashPassword)
 
 	return us.userRepository.Create(ctx, user)
+}
+
+func (us *userService) SignIn(ctx context.Context, username, password string) (uuid.UUID, error) {
+	userID, passwordHash, err := us.userRepository.GetCredentialsByUsername(ctx, username)
+	if err != nil {
+		if errors.Is(err, domain.ErrUserNotFound) {
+			return uuid.Nil, domain.ErrInvalidCredentials
+		}
+		return uuid.Nil, err
+	}
+	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
+		return uuid.Nil, domain.ErrInvalidCredentials
+	}
+	return userID, nil
 }
 
 func (us *userService) GetById(ctx context.Context, id uuid.UUID) (*domain.User, error) {

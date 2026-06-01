@@ -33,7 +33,7 @@ type RedisConfig struct {
 	Host               string
 	Port               string
 	Password           string
-	Db                 string
+	Db                 int
 	DialTimeout        time.Duration
 	ReadTimeout        time.Duration
 	WriteTimeout       time.Duration

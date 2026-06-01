@@ -24,20 +24,30 @@ func NewOrderRepository(db *sqlx.DB) OrderRepository {
 }
 
 func (r *orderRepository) Create(ctx context.Context, order domain.Order) error {
+	tx, err := r.db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
 	const queryCreateOrder = `INSERT INTO orders(user_id, total_price, status)
 		VALUES ($1, $2, $3)
 		Returning id;`
-	err := r.db.QueryRowxContext(ctx, queryCreateOrder, order.UserId, order.TotalPrice, order.Status).Scan(&order.Id)
+	err = tx.QueryRowxContext(ctx, queryCreateOrder, order.UserId, order.TotalPrice, order.Status).Scan(&order.Id)
 	if err != nil {
 		return fmt.Errorf("create order: %w", err)
 	}
 
 	const queryAddOrderItem = `INSERT INTO order_items(order_id, product_id, price, quantity) VALUES ($1, $2, $3, $4)`
 	for _, orderItem := range order.Items {
-		_, err = r.db.ExecContext(ctx, queryAddOrderItem, orderItem.OrderId, orderItem.ProductId, orderItem.Price, orderItem.Quantity)
+		_, err = r.db.ExecContext(ctx, queryAddOrderItem, order.Id, orderItem.ProductId, orderItem.Price, orderItem.Quantity)
 		if err != nil {
 			return fmt.Errorf("add order item: %w", err)
 		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit tx: %w", err)
 	}
 	return nil
 }
@@ -53,7 +63,7 @@ func (r *orderRepository) GetAllByUserID(ctx context.Context, userID uuid.UUID) 
 	var orderItems []domain.OrderItem
 	const queryGetOrderItemsByOrderID = `SELECT id, order_id, product_id, price, quantity FROM order_items WHERE order_id = $1`
 	for i, order := range orders {
-		err = r.db.SelectContext(ctx, &orderItems, queryGetOrderItemsByOrderID)
+		err = r.db.SelectContext(ctx, &orderItems, queryGetOrderItemsByOrderID, order.Id)
 		if err != nil {
 			return nil, fmt.Errorf("get order items: %w", err)
 		}
