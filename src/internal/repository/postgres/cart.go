@@ -2,6 +2,8 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 
 	"github.com/K1ver/e-commerce-api/internal/domain"
@@ -10,9 +12,8 @@ import (
 )
 
 type CartRepository interface {
-	Create(ctx context.Context, userID uuid.UUID) error
-	GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
-	GetWithItems(ctx context.Context, cartID uuid.UUID) (*domain.Cart, error)
+	GetOrCreateByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
+	GetWithItemsByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error)
 	AddItem(ctx context.Context, cartID, productID uuid.UUID, quantity int) error
 	UpdateItem(ctx context.Context, cartID, productID uuid.UUID, quantity int) error
 	RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error
@@ -27,51 +28,54 @@ func NewCartRepository(db *sqlx.DB) CartRepository {
 	return &cartRepository{db: db}
 }
 
-func (r *cartRepository) Create(ctx context.Context, userID uuid.UUID) error {
-	const query = `INSERT INTO carts(user_id)
-		VALUES($1)
-		RETURNING id, created_at, updated_at`
-	var cart domain.Cart
-	err := r.db.QueryRowContext(ctx, query, userID).Scan(&cart.ID, &cart.CreatedAt, &cart.UpdatedAt)
-	if err != nil {
-		return fmt.Errorf("create cart: %w", err)
+func (r *cartRepository) GetOrCreateByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
+	cart, err := r.getByUserID(ctx, userID)
+	if err == nil {
+		return cart, nil
 	}
-	return nil
+	if !errors.Is(err, domain.ErrCartNotFound) {
+		return nil, err
+	}
+	const query = `INSERT INTO carts(user_id) VALUES($1) RETURNING id, user_id, created_at, updated_at`
+	cart = &domain.Cart{}
+	err = r.db.QueryRowxContext(ctx, query, userID).Scan(&cart.ID, &cart.UserID, &cart.CreatedAt, &cart.UpdatedAt)
+	if err != nil {
+		return nil, fmt.Errorf("create cart: %w", err)
+	}
+	return cart, nil
 }
 
-func (r *cartRepository) GetByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
+func (r *cartRepository) getByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
 	const query = `SELECT id, user_id, created_at, updated_at FROM carts WHERE user_id = $1`
 	var cart domain.Cart
 	err := r.db.GetContext(ctx, &cart, query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get cart by user UserID: %w", err)
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrCartNotFound
+		}
+		return nil, fmt.Errorf("get cart: %w", err)
 	}
 	return &cart, nil
 }
 
-func (r *cartRepository) GetWithItems(ctx context.Context, cartID uuid.UUID) (*domain.Cart, error) {
-	const query = `SELECT id, user_id, created_at, updated_at
-		FROM carts
-		WHERE id = $1;`
-	var cart domain.Cart
-	err := r.db.GetContext(ctx, &cart, query, cartID)
+func (r *cartRepository) GetWithItemsByUserID(ctx context.Context, userID uuid.UUID) (*domain.Cart, error) {
+	cart, err := r.GetOrCreateByUserID(ctx, userID)
 	if err != nil {
-		return nil, fmt.Errorf("get cart by cart ID: %w", err)
+		return nil, err
 	}
-	const query2 = `SELECT id, cart_id, product_id, quantity
-		FROM cart_items
-		WHERE cart_id = $1;`
-	var cartItems []domain.CartItem
-	err = r.db.SelectContext(ctx, &cartItems, query2, cartID)
-	if err != nil {
-		return nil, fmt.Errorf("get cart items by cart ID: %w", err)
+	const query = `SELECT id, cart_id, product_id, quantity FROM cart_items WHERE cart_id = $1`
+	var items []domain.CartItem
+	if err := r.db.SelectContext(ctx, &items, query, cart.ID); err != nil {
+		return nil, fmt.Errorf("get cart items: %w", err)
 	}
-	cart.Items = cartItems
-	return &cart, nil
+	cart.Items = items
+	return cart, nil
 }
 
 func (r *cartRepository) AddItem(ctx context.Context, cartID, productID uuid.UUID, quantity int) error {
-	const query = `INSERT INTO cart_items(cart_id, product_id, quantity)VALUES($1, $2, $3);`
+	const query = `
+		INSERT INTO cart_items(cart_id, product_id, quantity) VALUES($1, $2, $3)
+		ON CONFLICT (cart_id, product_id) DO UPDATE SET quantity = cart_items.quantity + EXCLUDED.quantity`
 	_, err := r.db.ExecContext(ctx, query, cartID, productID, quantity)
 	if err != nil {
 		return fmt.Errorf("add cart item: %w", err)
@@ -80,17 +84,20 @@ func (r *cartRepository) AddItem(ctx context.Context, cartID, productID uuid.UUI
 }
 
 func (r *cartRepository) UpdateItem(ctx context.Context, cartID, productID uuid.UUID, quantity int) error {
-	const query = `UPDATE cart_items SET quantity = $1 WHERE cart_id = $2 AND product_id = $3;`
-	_, err := r.db.ExecContext(ctx, query, quantity, cartID, productID)
+	res, err := r.db.ExecContext(ctx,
+		`UPDATE cart_items SET quantity = $1 WHERE cart_id = $2 AND product_id = $3`, quantity, cartID, productID)
 	if err != nil {
 		return fmt.Errorf("update item: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	if n == 0 {
+		return domain.ErrProductNotFound
 	}
 	return nil
 }
 
 func (r *cartRepository) RemoveItem(ctx context.Context, cartID, productID uuid.UUID) error {
-	const query = `DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2;`
-	_, err := r.db.ExecContext(ctx, query, cartID, productID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM cart_items WHERE cart_id = $1 AND product_id = $2`, cartID, productID)
 	if err != nil {
 		return fmt.Errorf("remove item: %w", err)
 	}
@@ -98,8 +105,7 @@ func (r *cartRepository) RemoveItem(ctx context.Context, cartID, productID uuid.
 }
 
 func (r *cartRepository) Clear(ctx context.Context, cartID uuid.UUID) error {
-	const query = `DELETE FROM cart_items WHERE cart_id = $1;`
-	_, err := r.db.ExecContext(ctx, query, cartID)
+	_, err := r.db.ExecContext(ctx, `DELETE FROM cart_items WHERE cart_id = $1`, cartID)
 	if err != nil {
 		return fmt.Errorf("clear cart: %w", err)
 	}
