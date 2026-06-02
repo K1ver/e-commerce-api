@@ -18,7 +18,8 @@ type User struct {
 	LastName  string    `json:"lastName" db:"last_name" validate:"required,min=2,max=50"`
 	Username  string    `json:"username" db:"username" validate:"required,min=3,max=30"`
 	Email     string    `json:"email" db:"email" validate:"required,email"`
-	Password  string    `json:"password" db:"password_hash" validate:"required,min=6,max=100"`
+	Password  string    `json:"-" db:"password_hash" validate:"required,min=6,max=100"`
+	Role      Role      `json:"role" db:"role" validate:"required"`
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt time.Time `json:"updatedAt" db:"updated_at"`
 }
