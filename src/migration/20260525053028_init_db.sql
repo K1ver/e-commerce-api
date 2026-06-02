@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS users (
     username varchar(255) unique not null,
     email varchar(255) unique not null,
     password_hash text not null,
+    role varchar(32) not null default 'buyer' check (role in ('admin', 'seller', 'buyer')),
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS products (
     description text not null,
     price bigint not null check (price > 0),
     stock int not null check (stock >= 0),
+    seller_id uuid references users (id) on delete set null,
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
@@ -57,11 +59,13 @@ CREATE TABLE IF NOT EXISTS payments (
     id uuid primary key not null,
     order_id uuid not null references orders (id),
     amount bigint not null check (amount > 0),
-    status varchar(255) not null check (status in ('pending', 'success', 'failed') ),
+    status varchar(255) not null check (status in ('pending', 'succeeded', 'failed') ),
     created_at timestamptz default now(),
     updated_at timestamptz default now()
 );
 
+create index idx_products_seller_id on products(seller_id);
+create index idx_users_role on users(role);
 create index idx_cart_user_id on carts(user_id);
 create index idx_cart_item_cart_id on cart_items(cart_id);
 create index idx_cart_item_product_id on cart_items(product_id);
