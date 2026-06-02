@@ -15,6 +15,13 @@ func NewUserHandler(userService service.UserService) *UserHandler {
 	return &UserHandler{userService: userService}
 }
 
+// Me godoc
+// @Summary      Current user profile
+// @Tags         users
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object}  userResponse
+// @Router       /users/me [get]
 func (h *UserHandler) Me(w http.ResponseWriter, r *http.Request) {
 	userID, ok := ctxkey.UserIDFrom(r.Context())
 	if !ok {

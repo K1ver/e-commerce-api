@@ -8,7 +8,6 @@ import (
 	"github.com/K1ver/e-commerce-api/internal/domain"
 	"github.com/K1ver/e-commerce-api/internal/service"
 	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 )
 
 type AuthHandler struct {
@@ -37,24 +36,15 @@ type refreshRequest struct {
 	RefreshToken string `json:"refreshToken" validate:"required"`
 }
 
-type userResponse struct {
-	ID        uuid.UUID `json:"id"`
-	FirstName string    `json:"firstName"`
-	LastName  string    `json:"lastName"`
-	Username  string    `json:"username"`
-	Email     string    `json:"email"`
-}
-
-func toUserResponse(u *domain.User) userResponse {
-	return userResponse{
-		ID:        u.ID,
-		FirstName: u.FirstName,
-		LastName:  u.LastName,
-		Username:  u.Username,
-		Email:     u.Email,
-	}
-}
-
+// Register godoc
+// @Summary      Register buyer
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      registerRequest  true  "payload"
+// @Success      201   {object}  map[string]interface{}
+// @Failure      400,409,500
+// @Router       /auth/register [post]
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req registerRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -86,6 +76,15 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Login godoc
+// @Summary      Login
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      loginRequest  true  "payload"
+// @Success      200   {object}  jwtmanager.TokenPair
+// @Failure      400,401,500
+// @Router       /auth/login [post]
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -106,6 +105,15 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, tokens)
 }
 
+// Refresh godoc
+// @Summary      Refresh tokens
+// @Tags         auth
+// @Accept       json
+// @Produce      json
+// @Param        body  body      refreshRequest  true  "payload"
+// @Success      200   {object}  jwtmanager.TokenPair
+// @Failure      400,401,500
+// @Router       /auth/refresh [post]
 func (h *AuthHandler) Refresh(w http.ResponseWriter, r *http.Request) {
 	var req refreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
