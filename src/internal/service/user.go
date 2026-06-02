@@ -14,11 +14,10 @@ import (
 
 type UserService interface {
 	Create(ctx context.Context, user *domain.User) error
-	SignIn(ctx context.Context, username, password string) (uuid.UUID, error)
+	SignIn(ctx context.Context, username, password string) (*domain.User, error)
 	GetById(ctx context.Context, id uuid.UUID) (*domain.User, error)
-	GetByEmail(ctx context.Context, email string) (*domain.User, error)
-	GetByUsername(ctx context.Context, username string) (*domain.User, error)
-	Update(ctx context.Context, user *domain.User) error
+	List(ctx context.Context) ([]domain.User, error)
+	UpdateRole(ctx context.Context, id uuid.UUID, role domain.Role) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
@@ -32,6 +31,9 @@ func NewUserService(userRepository postgres.UserRepository, validate *validator.
 }
 
 func (us *userService) Create(ctx context.Context, user *domain.User) error {
+	if user.Role == "" {
+		user.Role = domain.RoleBuyer
+	}
 	err := us.validate.StructCtx(ctx, user)
 	if err != nil {
 		return fmt.Errorf("validate user: %w", err)
@@ -41,38 +43,36 @@ func (us *userService) Create(ctx context.Context, user *domain.User) error {
 		return fmt.Errorf("hash password: %w", err)
 	}
 	user.Password = string(hashPassword)
-
 	return us.userRepository.Create(ctx, user)
 }
 
-func (us *userService) SignIn(ctx context.Context, username, password string) (uuid.UUID, error) {
-	userID, passwordHash, err := us.userRepository.GetCredentialsByUsername(ctx, username)
+func (us *userService) SignIn(ctx context.Context, username, password string) (*domain.User, error) {
+	userID, passwordHash, role, err := us.userRepository.GetCredentialsByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, domain.ErrUserNotFound) {
-			return uuid.Nil, domain.ErrInvalidCredentials
+			return nil, domain.ErrInvalidCredentials
 		}
-		return uuid.Nil, err
+		return nil, err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)); err != nil {
-		return uuid.Nil, domain.ErrInvalidCredentials
+		return nil, domain.ErrInvalidCredentials
 	}
-	return userID, nil
+	return &domain.User{ID: userID, Username: username, Role: role}, nil
 }
 
 func (us *userService) GetById(ctx context.Context, id uuid.UUID) (*domain.User, error) {
 	return us.userRepository.GetById(ctx, id)
 }
 
-func (us *userService) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
-	return us.userRepository.GetByEmail(ctx, email)
+func (us *userService) List(ctx context.Context) ([]domain.User, error) {
+	return us.userRepository.List(ctx)
 }
 
-func (us *userService) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	return us.userRepository.GetByUsername(ctx, username)
-}
-
-func (us *userService) Update(ctx context.Context, user *domain.User) error {
-	return us.userRepository.Update(ctx, user)
+func (us *userService) UpdateRole(ctx context.Context, id uuid.UUID, role domain.Role) error {
+	if !role.IsValid() {
+		return domain.ErrInvalidRole
+	}
+	return us.userRepository.UpdateRole(ctx, id, role)
 }
 
 func (us *userService) Delete(ctx context.Context, id uuid.UUID) error {

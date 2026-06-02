@@ -11,11 +11,12 @@ import (
 )
 
 type ProductService interface {
-	Create(ctx context.Context, product domain.Product) error
-	Update(ctx context.Context, product domain.Product) error
+	Create(ctx context.Context, product *domain.Product) error
+	Update(ctx context.Context, actorID uuid.UUID, actorRole domain.Role, product domain.Product) error
 	FindByID(ctx context.Context, id uuid.UUID) (domain.Product, error)
 	FindAll(ctx context.Context) ([]domain.Product, error)
-	DeleteByID(ctx context.Context, id uuid.UUID) error
+	FindBySeller(ctx context.Context, sellerID uuid.UUID) ([]domain.Product, error)
+	Delete(ctx context.Context, actorID uuid.UUID, actorRole domain.Role, id uuid.UUID) error
 }
 
 type productService struct {
@@ -27,21 +28,24 @@ func NewProductService(productRepository postgres.ProductRepository, validate *v
 	return &productService{productRepository: productRepository, validate: validate}
 }
 
-func (ps *productService) Create(ctx context.Context, product domain.Product) error {
-	err := ps.validate.StructCtx(ctx, product)
-	if err != nil {
-		return fmt.Errorf("validate err: %w", err)
+func (ps *productService) Create(ctx context.Context, product *domain.Product) error {
+	if err := ps.validate.StructCtx(ctx, product); err != nil {
+		return fmt.Errorf("validate: %w", err)
 	}
-
 	return ps.productRepository.Create(ctx, product)
 }
 
-func (ps *productService) Update(ctx context.Context, product domain.Product) error {
-	err := ps.validate.StructCtx(ctx, product)
-	if err != nil {
-		return fmt.Errorf("validate err: %w", err)
+func (ps *productService) Update(ctx context.Context, actorID uuid.UUID, actorRole domain.Role, product domain.Product) error {
+	if err := ps.validate.StructCtx(ctx, product); err != nil {
+		return fmt.Errorf("validate: %w", err)
 	}
-
+	existing, err := ps.productRepository.FindByID(ctx, product.ID)
+	if err != nil {
+		return err
+	}
+	if err := ps.canManageProduct(actorID, actorRole, existing); err != nil {
+		return err
+	}
 	return ps.productRepository.Update(ctx, product)
 }
 
@@ -53,6 +57,27 @@ func (ps *productService) FindAll(ctx context.Context) ([]domain.Product, error)
 	return ps.productRepository.FindAll(ctx)
 }
 
-func (ps *productService) DeleteByID(ctx context.Context, id uuid.UUID) error {
+func (ps *productService) FindBySeller(ctx context.Context, sellerID uuid.UUID) ([]domain.Product, error) {
+	return ps.productRepository.FindBySellerID(ctx, sellerID)
+}
+
+func (ps *productService) Delete(ctx context.Context, actorID uuid.UUID, actorRole domain.Role, id uuid.UUID) error {
+	existing, err := ps.productRepository.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if err := ps.canManageProduct(actorID, actorRole, existing); err != nil {
+		return err
+	}
 	return ps.productRepository.DeleteByID(ctx, id)
+}
+
+func (ps *productService) canManageProduct(actorID uuid.UUID, actorRole domain.Role, product domain.Product) error {
+	if actorRole == domain.RoleAdmin {
+		return nil
+	}
+	if actorRole == domain.RoleSeller && product.SellerID != nil && *product.SellerID == actorID {
+		return nil
+	}
+	return domain.ErrForbidden
 }
