@@ -1,0 +1,174 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "E-Commerce API",
+    "description": "E-Commerce API with JWT, roles (admin/seller/buyer), cart, orders and payments. Price is in kopecks (minor units).",
+    "version": "1.0"
+  },
+  "host": "localhost:8080",
+  "basePath": "/api/v1",
+  "schemes": ["http"],
+  "securityDefinitions": {
+    "BearerAuth": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header",
+      "description": "Bearer {accessToken}"
+    }
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Register buyer",
+        "consumes": ["application/json"],
+        "produces": ["application/json"],
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "required": true,
+          "schema": {
+            "type": "object",
+            "required": ["firstName", "lastName", "username", "email", "password"],
+            "properties": {
+              "firstName": {"type": "string"},
+              "lastName": {"type": "string"},
+              "username": {"type": "string"},
+              "email": {"type": "string"},
+              "password": {"type": "string", "minLength": 6}
+            }
+          }
+        }],
+        "responses": {"201": {"description": "Created"}}
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Login",
+        "parameters": [{
+          "in": "body",
+          "name": "body",
+          "schema": {
+            "type": "object",
+            "properties": {
+              "username": {"type": "string"},
+              "password": {"type": "string"}
+            }
+          }
+        }],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Refresh tokens",
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/users/me": {
+      "get": {
+        "tags": ["users"],
+        "summary": "Current user",
+        "security": [{"BearerAuth": []}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["products"],
+        "summary": "List products",
+        "responses": {"200": {"description": "OK"}}
+      },
+      "post": {
+        "tags": ["products"],
+        "summary": "Create product (seller/admin)",
+        "security": [{"BearerAuth": []}],
+        "responses": {"201": {"description": "Created"}}
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "tags": ["products"],
+        "summary": "Get product",
+        "parameters": [{"name": "id", "in": "path", "required": true, "type": "string"}],
+        "responses": {"200": {"description": "OK"}}
+      },
+      "put": {
+        "tags": ["products"],
+        "summary": "Update product",
+        "security": [{"BearerAuth": []}],
+        "parameters": [{"name": "id", "in": "path", "required": true, "type": "string"}],
+        "responses": {"200": {"description": "OK"}}
+      },
+      "delete": {
+        "tags": ["products"],
+        "summary": "Delete product",
+        "security": [{"BearerAuth": []}],
+        "parameters": [{"name": "id", "in": "path", "required": true, "type": "string"}],
+        "responses": {"204": {"description": "No Content"}}
+      }
+    },
+    "/seller/products": {
+      "get": {
+        "tags": ["products"],
+        "summary": "Seller products",
+        "security": [{"BearerAuth": []}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/cart": {
+      "get": {
+        "tags": ["cart"],
+        "summary": "Get cart",
+        "security": [{"BearerAuth": []}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/cart/items": {
+      "post": {
+        "tags": ["cart"],
+        "summary": "Add to cart",
+        "security": [{"BearerAuth": []}],
+        "responses": {"204": {"description": "No Content"}}
+      }
+    },
+    "/orders/checkout": {
+      "post": {
+        "tags": ["orders"],
+        "summary": "Checkout",
+        "security": [{"BearerAuth": []}],
+        "responses": {"201": {"description": "Created"}}
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["orders"],
+        "summary": "My orders",
+        "security": [{"BearerAuth": []}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["admin"],
+        "summary": "List users",
+        "security": [{"BearerAuth": []}],
+        "responses": {"200": {"description": "OK"}}
+      }
+    },
+    "/admin/users/{id}/role": {
+      "patch": {
+        "tags": ["admin"],
+        "summary": "Update user role",
+        "security": [{"BearerAuth": []}],
+        "parameters": [
+          {"name": "id", "in": "path", "required": true, "type": "string"},
+          {"in": "body", "name": "body", "schema": {"type": "object", "properties": {"role": {"type": "string", "enum": ["admin", "seller", "buyer"]}}}}
+        ],
+        "responses": {"204": {"description": "No Content"}}
+      }
+    }
+  }
+}
