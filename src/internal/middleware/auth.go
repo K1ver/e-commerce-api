@@ -24,13 +24,13 @@ func (m *Auth) RequireJWT(next http.Handler) http.Handler {
 			return
 		}
 
-		userID, err := m.jwt.ParseAccess(token)
+		subject, err := m.jwt.ParseAccess(token)
 		if err != nil {
 			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
 			return
 		}
 
-		ctx := ctxkey.WithUserID(r.Context(), userID)
+		ctx := ctxkey.WithAuth(r.Context(), subject.UserID, subject.Role)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
