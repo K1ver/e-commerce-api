@@ -8,6 +8,13 @@ type Config struct {
 	Redis    RedisConfig
 	Cors     CorsConfig
 	JWT      JWTConfig
+	YooKassa YooKassaConfig
+}
+
+type YooKassaConfig struct {
+	ShopID    string
+	SecretKey string
+	ReturnURL string
 }
 
 type ServerConfig struct {

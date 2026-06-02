@@ -70,6 +70,11 @@ func Load() (*Config, error) {
 			Secret:                     jwtSecret,
 			RefreshSecret:              jwtRefreshSecret,
 		},
+		YooKassa: YooKassaConfig{
+			ShopID:    os.Getenv("YOOKASSA_SHOP_ID"),
+			SecretKey: os.Getenv("YOOKASSA_SECRET_KEY"),
+			ReturnURL: getEnv("YOOKASSA_RETURN_URL", "http://localhost:3000/orders"),
+		},
 	}, nil
 }
 
