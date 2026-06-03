@@ -96,10 +96,13 @@ func (s *paymentService) createExternalPayment(ctx context.Context, payment *dom
 	}
 	payment.ID = uuid.MustParse(yopayment.ID)
 	if yopayment.Confirmation != nil {
-		if url := yopayment.Confirmation; url != "" {
-			return url, nil
+		url, err := s.paymentHandler.ParsePaymentLink(yopayment)
+		if err != nil {
+			return "", fmt.Errorf("payment parse link failed: %w", err)
 		}
+		return url, nil
 	}
+
 	return s.cfg.ReturnURL, nil
 }
 
