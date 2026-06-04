@@ -12,12 +12,13 @@ package main
 import (
 	"context"
 	"errors"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	_ "github.com/K1ver/e-commerce-api/docs"
 	"github.com/K1ver/e-commerce-api/internal/config"

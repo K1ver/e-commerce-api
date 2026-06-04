@@ -5,9 +5,17 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
+
+	"github.com/joho/godotenv"
 )
 
 func Load() (*Config, error) {
+	err := godotenv.Load()
+	if err != nil {
+		log.Error("Error loading .env file")
+	}
 	accessTTL, err := parseDurationEnv("JWT_ACCESS_EXPIRE", 15*time.Minute)
 	if err != nil {
 		return nil, err
