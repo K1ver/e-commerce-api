@@ -50,7 +50,7 @@ func (h *PaymentHandler) Create(w http.ResponseWriter, r *http.Request) {
 // @Security     BearerAuth
 // @Param        orderId  path  string  true  "Order ID"
 // @Produce      json
-// @Success      200  {object}  domain.Payment
+// @Success      200  {object}  map[string]interface{}
 // @Router       /orders/{orderId}/payments [get]
 func (h *PaymentHandler) GetByOrder(w http.ResponseWriter, r *http.Request) {
 	userID, _ := ctxkey.UserIDFrom(r.Context())
